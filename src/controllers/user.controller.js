@@ -213,4 +213,32 @@ const refreshAccessToken = asyncHandler(async (req,res)=>{
 
 })
 
-export {registerUser,loginUser,logoutUser,refreshAccessToken}
+const changeCurrentPassword = asyncHandler(async(req,res)=>{
+    //we will add middleware of auth.middleware with this route so we will get user from req.user
+    //get old and new pass from req.user
+    //find user by req.user._id
+    //check if pass == this.pass with the help of isPasscorrect
+    //set password = newPassword
+    //user.save
+    //return res.
+    const {oldPassword,newPassword}=req.body
+
+    const user = await User.findById(req.user?._id)
+    if(!user){
+        throw new ApiError(401,"user not found")
+    }
+    const checkPassword = await user.isPasswordCorrect(oldPassword)
+    if(!checkPassword){
+        throw new ApiError(402,"invalid old password")
+    }
+    user.password=newPassword
+    await user.save({validateBeforeSave:false})
+    return res.status(200)
+    .json(200,{},"password changed successfully")
+})
+
+const getCurrentUser = asyncHandler(async(req,res)=>{
+    return res.status(200)
+    .json(200,req.user,"user found successfully")
+})
+export {registerUser,loginUser,logoutUser,refreshAccessToken,changeCurrentPassword,getCurrentUser}
