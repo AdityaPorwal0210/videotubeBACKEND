@@ -243,6 +243,7 @@ const getCurrentUser = asyncHandler(async(req,res)=>{
 })
 
 const updateAccountDetails = asyncHandler(async(req,res)=>{
+    //we will use auth middleware to verify user
     const {fullName,email} = req.body
     if(!fullName&&!email){
         throw new ApiError(400,"fullname or email must be present")
@@ -256,4 +257,57 @@ const updateAccountDetails = asyncHandler(async(req,res)=>{
     return res.status(200)
     .json(new ApiResponse(200,user,"Account details updated successfully"))
 })
-export {registerUser,loginUser,logoutUser,refreshAccessToken,changeCurrentPassword,getCurrentUser,updateAccountDetails}
+
+const updateUserAvatar = asyncHandler(async(req,res)=>{
+    const avatarLocalPath = req.file?.path
+    if(!avatarLocalPath){
+        throw new ApiError(401,"error while fetchng avatar")
+    }
+
+    // fs.unlinkSync(req.user?.avatar.path)
+
+    const avatar = await uploadOnCloudinary(avatarLocalPath)
+    if(!avatar.url){
+        throw new ApiError(402,"error while uploading on cloudianry")
+    }
+    
+    const user = await User.findByIdAndUpdate(req.user._id,
+        {$set:{
+            avatar:avatar.url
+        }},
+        {new:true}
+    ).select("-password")
+
+    return res.status(200)
+    .json(new ApiResponse(200,user,"avatar uploaded successfully"))
+})
+
+const updateUserCoverImage = asyncHandler(async(req,res)=>{
+    const coverImageLocalPath = req.file?.path
+    if(!coverImageLocalPath){
+        throw new ApiError(401,"error while fetchng coverImage")
+    }
+
+    // fs.unlinkSync(req.user?.avatar.path)
+
+    const coverImage = await uploadOnCloudinary(coverImageLocalPath)
+    if(!coverImage.url){
+        throw new ApiError(402,"error while uploading on cloudianry")
+    }
+    
+    const user = await User.findByIdAndUpdate(
+        req.user._id,
+        {
+            $set:{
+            coverImage:coverImage.url
+        }
+       },
+        {new:true}
+    ).select("-password")
+
+    return res.status(200)
+    .json(new ApiResponse(200,user,"coverImage uploaded successfully"))
+})
+
+
+export {updateUserCoverImage,updateUserCoverImage,registerUser,loginUser,logoutUser,refreshAccessToken,changeCurrentPassword,getCurrentUser,updateAccountDetails,updateUserAvatar}
