@@ -4,6 +4,7 @@ import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { User } from "../models/user.model.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
+import {v2 as cloudinary} from "cloudinary"
 import jwt from "jsonwebtoken"
 import mongoose from "mongoose";
 import { verifyJWT } from "../middlewares/auth.middleware.js";
@@ -31,7 +32,7 @@ console.log("before existedUser")
     const existedUser = await User.findOne({
         $or: [{ username }, { email }]
     })
-
+     
     if (existedUser) {
         throw new ApiError(409, "User with email or username already exists")
     }
@@ -45,7 +46,7 @@ console.log("before existedUser")
         coverImageLocalPath = req.files.coverImage[0].path
     }
     
-
+     console.log("here");
     if (!avatarLocalPath) {
         throw new ApiError(400, "Avatar file is required")
     }
@@ -60,7 +61,10 @@ console.log("before existedUser")
 
     const user = await User.create({
         fullName,
-        avatar: avatar.url,
+        avatar: {
+            url:avatar.url,
+            public_id:avatar.public_id
+        },
         coverImage: coverImage?.url || "",
         email, 
         password,
@@ -74,7 +78,7 @@ console.log("before existedUser")
     if (!createdUser) {
         throw new ApiError(500, "Something went wrong while registering the user")
     }
-
+    console.log("user createed success")
     return res.status(201).json(
         new ApiResponse(200, createdUser, "User registered Successfully")
     )
@@ -234,12 +238,12 @@ const changeCurrentPassword = asyncHandler(async(req,res)=>{
     user.password=newPassword
     await user.save({validateBeforeSave:false})
     return res.status(200)
-    .json(200,{},"password changed successfully")
+    .json(new ApiResponse(200,{},"password changed successfully"))
 })
 
 const getCurrentUser = asyncHandler(async(req,res)=>{
     return res.status(200)
-    .json(200,req.user,"user found successfully")
+    .json(new ApiResponse(200,req.user,"user found successfully"))
 })
 
 const updateAccountDetails = asyncHandler(async(req,res)=>{
@@ -258,14 +262,30 @@ const updateAccountDetails = asyncHandler(async(req,res)=>{
     .json(new ApiResponse(200,user,"Account details updated successfully"))
 })
 
+const deleteCloudinaryImage = async (publicId)=>{
+   try {
+     if(!publicId){
+         console.log("no public id to delete")
+         return;
+     }
+     return await cloudinary.uploader.destroy(publicId,{
+         invalidate:true
+     })
+   } catch (error) {
+    throw new ApiError(405,"error while deleting image")
+   }
+}
+
 const updateUserAvatar = asyncHandler(async(req,res)=>{
+    //we will use auth middleware to verify user
     const avatarLocalPath = req.file?.path
     if(!avatarLocalPath){
         throw new ApiError(401,"error while fetchng avatar")
     }
-
-    // fs.unlinkSync(req.user?.avatar.path)
-
+    
+    const imageToDelete =  req.user?.avatar?.public_id;
+    
+    
     const avatar = await uploadOnCloudinary(avatarLocalPath)
     if(!avatar.url){
         throw new ApiError(402,"error while uploading on cloudianry")
@@ -273,22 +293,29 @@ const updateUserAvatar = asyncHandler(async(req,res)=>{
     
     const user = await User.findByIdAndUpdate(req.user._id,
         {$set:{
-            avatar:avatar.url
+            avatar:{
+                url: avatar.url,
+                public_id: avatar.public_id
+            }
         }},
         {new:true}
     ).select("-password")
-
+    
+    if(imageToDelete){
+     await deleteCloudinaryImage(imageToDelete);
+    }
     return res.status(200)
     .json(new ApiResponse(200,user,"avatar uploaded successfully"))
 })
 
 const updateUserCoverImage = asyncHandler(async(req,res)=>{
+    //we will use auth middleware to verify user
     const coverImageLocalPath = req.file?.path
     if(!coverImageLocalPath){
         throw new ApiError(401,"error while fetchng coverImage")
     }
 
-    // fs.unlinkSync(req.user?.avatar.path)
+    // fs.unlinkSync(req.user?.coverImage.path)
 
     const coverImage = await uploadOnCloudinary(coverImageLocalPath)
     if(!coverImage.url){
@@ -309,5 +336,73 @@ const updateUserCoverImage = asyncHandler(async(req,res)=>{
     .json(new ApiResponse(200,user,"coverImage uploaded successfully"))
 })
 
+const getUserProfile = asyncHandler(async(req,res)=>{
+    //get username
+    //check username
+    //User.agg write queries
+    const {username} = req.params
+    if(!username){
+        throw new ApiError(400,"missing username")
+    }
 
-export {updateUserCoverImage,updateUserCoverImage,registerUser,loginUser,logoutUser,refreshAccessToken,changeCurrentPassword,getCurrentUser,updateAccountDetails,updateUserAvatar}
+    const channel = await User.aggregate(
+        [{
+            $match:{
+                username: username?.toLowerCase()
+            }
+        },
+        {
+            $lookup:{
+                from:"subscriptions",
+                localField:"_id",
+                foreignField:"channel",
+                as:"subscribers"
+            }
+        },
+        {
+            $lookup:{
+                from:"subscriptions",
+                localField:"_id",
+                foreignField:"subscriber",
+                as:"subscribedTo"
+            }
+        },
+        {
+            $addField:{
+                subscriberCount:{
+                    $size:"$subscribers"
+                },
+                channelsSubscribedToCount:{
+                    $size:"$subscribedTo"
+                },
+                isSubscribed:{
+                    $cond:{
+                        if: {$in:[req.user._id,"$subscribers.subscriber"]},
+                        then:true,
+                        else:false
+                    }
+                }
+            }
+        },
+        {
+            $project:{
+                username:1,
+                fullName:1,
+                coverImage:1,
+                avatar:1,
+                subscriberCount:1,
+                channelsSubscribedToCount:1,
+                isSubscribed:1,
+                email:1
+            }
+        }
+    ])
+    console.log(channel)
+    if(!channel?.length){
+        throw new ApiError(404,"channel does not exist")
+    }
+    return res.status(200)
+    .json(new ApiResponse(200,channel[0],"user channel fetched successfully"))
+})
+
+export {updateUserCoverImage,registerUser,loginUser,logoutUser,refreshAccessToken,changeCurrentPassword,getCurrentUser,updateAccountDetails,updateUserAvatar}
