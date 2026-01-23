@@ -336,7 +336,7 @@ const updateUserCoverImage = asyncHandler(async(req,res)=>{
     .json(new ApiResponse(200,user,"coverImage uploaded successfully"))
 })
 
-const getUserProfile = asyncHandler(async(req,res)=>{
+const getUserChannelProfile = asyncHandler(async(req,res)=>{
     //get username
     //check username
     //User.agg write queries
@@ -455,7 +455,7 @@ return res.status(200)
 })
 export {
     getWatchHistory,
-    getUserProfile,
+    getUserChannelProfile,
     updateUserCoverImage
     ,registerUser
     ,loginUser
