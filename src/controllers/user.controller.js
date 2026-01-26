@@ -341,6 +341,7 @@ const getUserChannelProfile = asyncHandler(async(req,res)=>{
     //get username
     //check username
     //User.agg write queries
+    console.log("inside getuserchannel")
     const {username} = req.params
     if(!username){
         throw new ApiError(400,"missing username")
