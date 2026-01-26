@@ -152,8 +152,8 @@ console.log("before user loggedin")
 const logoutUser = asyncHandler(async (req,res)=>{
 await User.findByIdAndUpdate(req.user._id,
     {
-        $set:{
-            refreshToken: undefined
+        $unset:{
+            refreshToken: 1
         }
     },
     {
@@ -165,7 +165,8 @@ const options = {
         secure: true
     }
 
-    return res.status(200).clearCookie("accessToken",options)
+    return res.status(200)
+    .clearCookie("accessToken",options)
     .clearCookie("refreshToken",options)
     .json(new ApiResponse(200,"user loggedOut successfully"))
 })
