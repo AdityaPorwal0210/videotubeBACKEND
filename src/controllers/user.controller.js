@@ -438,7 +438,7 @@ const user = await User.aggregate([
                     }
                 },
                 {
-                    $addField:{
+                    $addFields:{
                         owner:{
                             $first: "$owner"
                         }
