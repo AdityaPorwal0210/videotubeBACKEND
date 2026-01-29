@@ -36,14 +36,14 @@ const createPlaylist = asyncHandler(async(req,res)=>{
 const getUserPlaylists = asyncHandler(async(req,res)=>{
     //verify auth
     const userId=req.user?._id
-    if(!userId){
-        throw new ApiError(400,"user not found")
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+         throw new ApiError(400, "Invalid user ID");
     }
     try {
         const userPlaylists = await Playlist.aggregate([
             {
                 $match:{
-                    owner:mongoose.Types.ObjectId(userId)
+                    owner:new mongoose.Types.ObjectId(userId)
                 }
             },
             {
@@ -109,7 +109,6 @@ const addVideoToPlaylist = asyncHandler(async(req,res)=>{
     if(!playlist){
         throw new ApiError(400,"playlist update failed")
     }
-    playlist.save({validateBeforeSave:false})
     return res.status(200).
     json(new ApiResponse(200,playlist,"playlist updated"))
 })
@@ -124,27 +123,27 @@ const removeVideoFromPlaylist = asyncHandler(async(req,res)=>{
     if(!userId){
         throw new ApiError(401,"user not found")
     }
-//     const playlist = await Playlist.findOneAndUpdate(
-//     {
-//       _id: playlistId,
-//       owner: userId
-//     },
-//     {
-//       $pull: {
-//         videos: { _id: videoId }
-//       }
-//     },
-//     { new: true }
-//   );
-    const playlist = await Playlist.findOne({
-    _id: playlistId,
-    owner: userId
-  });
+    const playlist = await Playlist.findOneAndUpdate(
+    {
+      _id: playlistId,
+      owner: userId
+    },
+    {
+      $pull: {
+        videos: { _id: videoId }
+      }
+    },
+    { new: true }
+    );
+//     const playlist = await Playlist.findOne({
+//     _id: playlistId,
+//     owner: userId
+//   });
     if(!playlist){
         throw new ApiError(402,"playlist not found")
     }
-    playlist.videos = playlist.videos.filter((video)=>video._id.toString()!==videoId.toString())
-    await playlist.save()
+    // playlist.videos = playlist.videos.filter((video)=>video._id.toString()!==videoId.toString())
+    // await playlist.save()
     return res.status(200)
     .json(new ApiResponse(200,playlist,"video delelted successfully"))
 })
