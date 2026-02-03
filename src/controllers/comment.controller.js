@@ -7,7 +7,7 @@ import { ApiResponse } from "../utils/ApiResponse";
 const getVideoComments = asyncHandler(async(req,res)=>{
 
     const {videoId} = req.params
-    const { page = 1, limit = 10 } = req.query;
+    let { page = 1, limit = 10 } = req.query;
     page = parseInt(page);
     limit = parseInt(limit);
     const skip = (page - 1) * limit;
@@ -15,7 +15,7 @@ const getVideoComments = asyncHandler(async(req,res)=>{
         throw new ApiError(404,"videoId not valid")
     }
 
-    const videoComments = Comment.aggregate([
+    const videoComments = await Comment.aggregate([
         {
             $match:{
                video: new mongoose.Types.ObjectId(videoId)
@@ -87,10 +87,11 @@ const updateComment = asyncHandler(async(req,res)=>{
      if(!commentId){
         throw new ApiError(400,"commentId invalid")
     }
-    const content = req.body
-    if(content.trim().length===0){
-        throw new ApiError(403,"empty content")
+    const { content } = req.body;
+    if (!content || content.trim().length === 0) {
+      throw new ApiError(403, "empty content");
     }
+
     const updatedComment = await Comment.findOneAndUpdate({owner:userId,_id:commentId},{content:content},{new:true})
     if(!updatedComment){
         throw new ApiError(400,"Comment updation failed")
@@ -100,7 +101,7 @@ const updateComment = asyncHandler(async(req,res)=>{
 
 const deleteComment = asyncHandler(async(req,res)=>{
     //verify 
-    const {userId}=req.user?._id
+    const userId = req.user?._id;
     if(!userId){
         throw new ApiError(400,"userId invalid")
     }

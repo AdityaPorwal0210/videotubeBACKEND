@@ -8,12 +8,12 @@ import { uploadOnCloudinary } from "../utils/cloudinary";
 
 const createPlaylist = asyncHandler(async(req,res)=>{
     //verify auth
-    const userId = req.user._id
+    const userId = req.user?._id
     const {description,name} = req.body
-    if(!name){
+    if(!name|| name.trim().length === 0){
         throw new ApiError(401,"name of the playlist required")
     }
-    const existingPlaylist = await Playlist.findOne({name:name,owner:userId})
+    const existingPlaylist = await Playlist.findOne({name:name.trim(),owner:userId})
     if(existingPlaylist){
         throw new ApiError(404,"playlist with this name already exist")
     }
@@ -64,7 +64,7 @@ const getUserPlaylists = asyncHandler(async(req,res)=>{
 
 const getPlaylistById = asyncHandler(async(req,res)=>{
     const {playlistId}= req.params
-    if(!playlistId){
+    if(!mongoose.Types.ObjectId.isValid(playlistId)){
         throw new ApiError(400,"playlistId not found")
     }
 
@@ -82,7 +82,7 @@ const addVideoToPlaylist = asyncHandler(async(req,res)=>{
         throw new ApiError(400,"userId not found")
     }
     const {playlistId}=req.params
-    if(!playlistId){
+    if(!mongoose.Types.ObjectId.isValid(playlistId)){
         throw new ApiError(400,"playlistId not found")
     }
     const videoLocalPath=req.files?.video[0]?.path
@@ -109,8 +109,9 @@ const addVideoToPlaylist = asyncHandler(async(req,res)=>{
     if(!playlist){
         throw new ApiError(400,"playlist update failed")
     }
-    return res.status(200).
-    json(new ApiResponse(200,playlist,"playlist updated"))
+    return res
+    .status(200)
+    .json(new ApiResponse(200,playlist,"playlist updated"))
 })
 
 const removeVideoFromPlaylist = asyncHandler(async(req,res)=>{
@@ -155,15 +156,21 @@ const deletePlaylist = asyncHandler(async(req,res)=>{
         throw new ApiError(401,"user not found")
     }
     const {playlistId}= req.params
-    if(!playlistId){
+    if(!mongoose.Types.ObjectId.isValid(playlistId)){
         throw new ApiError(401,"playlistId not found")
     }
-    try {
-        const deletedPlaylist = await Playlist.findOneAndDelete({_id:playlistId,owner:userId})
-        return res.status(200).json(new ApiResponse(200,null,"playlist deleted successfully"))
-    } catch (error) {
-        throw new ApiError(405,error.message||"error while deleting playlist")
-    }
+    const deletedPlaylist = await Playlist.findOneAndDelete({
+    _id: playlistId,
+    owner: userId,
+    });
+
+  if (!deletedPlaylist) {
+    throw new ApiError(404, "playlist not found or access denied");
+  }
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, null, "playlist deleted successfully"));
 
 })
 

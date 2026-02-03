@@ -10,7 +10,7 @@ const toogleVideoLike = asyncHandler(async(req,res)=>{
     // create like
     const{videoId} = req.params
     const userId = req.user?._id
-    if(!videoId){
+    if(!mongoose.Types.ObjectId.isValid(videoId)){
         throw new ApiError(401,"videoId is invalid")
     }
     if(!userId){
@@ -61,9 +61,9 @@ const toogleTweetLike = asyncHandler(async(req,res)=>{
     //verify user
     // if found one then delete 
     // create like
-    const{TweetId} = req.params
+    const{tweetId} = req.params
     const userId = req.user?._id
-    if(!TweetId){
+    if(!tweetId){
         throw new ApiError(401,"TweetId is invalid")
     }
     if(!userId){
@@ -71,13 +71,13 @@ const toogleTweetLike = asyncHandler(async(req,res)=>{
     }
 
     const deletedLike = await Like.findOneAndDelete(
-        {tweet:TweetId,likedBy:userId}
+        {tweet:tweetId,likedBy:userId}
     )
     if(deletedLike){
         return res.status(200).json(new ApiResponse(200,null,"unliked successfully"))
     }
 
-    const newLike = await Like.create({tweet:TweetId,likedBy:userId})
+    const newLike = await Like.create({tweet:tweetId,likedBy:userId})
     if(!newLike){
         throw new ApiError(405,"error while liking this video")
     }
@@ -116,11 +116,15 @@ const getLikedVideos = asyncHandler(async(req,res)=>{
                     }
                 ]
             }
-        }
+        },
+        {
+         $unwind: {
+         path: "$videoDetails",
+         preserveNullAndEmptyArrays: false,
+         },
+        },
     ])
-    if(!likedVideos){
-        throw new ApiError(405,"error while fetching liked videos")
-    }
+    
     return res.status(200).json(new ApiResponse(200,likedVideos,"fetched liked videos successfully"))
     
 })

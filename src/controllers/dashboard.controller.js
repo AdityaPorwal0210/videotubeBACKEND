@@ -73,7 +73,6 @@ const getChannelStats = asyncHandler(async (req, res) => {
                 avatar: 1,
                 coverImage: 1,
                 subscriberCount: 1,
-                totalVideos: 1,
                 totalViews: 1,
                 totalLikes: 1
             }
@@ -131,3 +130,5 @@ const getChannelVideos = asyncHandler(async (req, res) => {
     ])
     return res.status(200).json(new ApiResponse(200,channelVideos,"success"))
 })
+
+export{getChannelStats,getChannelVideos}

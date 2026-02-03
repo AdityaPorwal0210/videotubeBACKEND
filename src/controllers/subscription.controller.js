@@ -58,7 +58,7 @@ const getSubscribedChannel = asyncHandler(async(req,res)=>{
     //verify with auth
     //use pipeline
     const {userId} = req.params
-    if(!userId){
+    if(!mongoose.Types.ObjectId.isValid(userId)){
         throw new ApiError(401,"userId not found")
     }
     const subscribedList = await Subscription.aggregate([
@@ -74,10 +74,12 @@ const getSubscribedChannel = asyncHandler(async(req,res)=>{
                 foreignField:"_id",
                 as:"subscribers",
                 pipeline:[{
-                    _id:1,
-                   username:1,
-                   avatar:1,
-                   fullName:1,
+                    $project:{
+                      _id:1,
+                      username:1,
+                      avatar:1,
+                      fullName:1,
+                    }
 
                 }]
             }

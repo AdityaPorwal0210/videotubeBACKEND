@@ -148,7 +148,7 @@ const publishVideo = asyncHandler(async(req,res)=>{
     }
     const newVideo = await Video.create({
         videoFile:video.url,
-        thumbnail:thumbnail,
+        thumbnail:thumbnail.url,
         title:title,
         description:description,
         duration:video.duration,
@@ -174,44 +174,61 @@ const getVideoById = asyncHandler(async(req,res)=>{
     return res.status(200).json(new ApiResponse(200,video,"video fetched successfully"))
 })
 
-const updateVideo = asyncHandler(async(req,res)=>{
-    //verify user
-    const userId = req.user?._id
-    if(!userId){
-        throw new ApiError(400,"userId not found")
+const updateVideo = asyncHandler(async (req, res) => {
+  const userId = req.user?._id;
+  if (!userId) throw new ApiError(401, "userId not found");
+
+  const { videoId } = req.params;
+  if (!mongoose.Types.ObjectId.isValid(videoId)) {
+    throw new ApiError(400, "invalid videoId");
+  }
+
+  const { title, description } = req.body;
+  const thumbnailLocalPath = req.files?.thumbnail?.[0]?.path;
+
+  const existingVideo = await Video.findOne({ _id: videoId, owner: userId });
+  if (!existingVideo) {
+    throw new ApiError(404, "video not found or access denied");
+  }
+
+  let newThumbnailUrl = existingVideo.thumbnail;
+  let newThumbnailPublicId = existingVideo.thumbnailPublicId;
+
+  if (thumbnailLocalPath) {
+    const uploadedThumb = await uploadOnCloudinary(thumbnailLocalPath);
+    if (!uploadedThumb?.url) {
+      throw new ApiError(500, "error while uploading thumbnail on cloudinary");
     }
-    const videoId = req.params
-    if(!videoId){
-        throw new ApiError(401,"video Id not found")
+
+    // destroy old thumbnail if we had a publicId
+    if (existingVideo.thumbnailPublicId) {
+      try {
+        await cloudinary.uploader.destroy(existingVideo.thumbnailPublicId);
+      } catch (e) {
+        // optional: log error, but don't block update
+      }
     }
-    const {title,description}=req.body
-    const thumbnailLocalPath = req.files?.thumbnail[0].path
-    const oldthumbnail = await Video.findOne({_id:videoId,owner:userId}).thumbnail
-    const thumbnail=oldthumbnail;
-    if(thumbnailLocalPath){
-         thumbnail= await uploadOnCloudinary(thumbnailLocalPath)
-    }
-    const updatedVideo = await Video.findByIdAndUpdate(videoId,{
-        if(title){
-            title:title
-        },
-        if(description){
-            description:description
-        },
-        if(thumbnail){
-            thumbnail:thumbnail.url
-        } 
-    })
-    if(thumbnailLocalPath){
-        try {
-            await cloudinary.uploader.destroy(oldthumbnail)
-        }
-        catch (error) {
-            throw new ApiError(400,error.message)
-        }
-    } 
-    return res.status(200).json(new ApiResponse(200,updatedVideo,"video details updated successfully"))
-})
+
+    newThumbnailUrl = uploadedThumb.url;
+    newThumbnailPublicId = uploadedThumb.public_id;
+  }
+
+  const updatedVideo = await Video.findByIdAndUpdate(
+    videoId,
+    {
+      ...(title && { title }),
+      ...(description && { description }),
+      ...(newThumbnailUrl && { thumbnail: newThumbnailUrl }),
+      ...(newThumbnailPublicId && { thumbnailPublicId: newThumbnailPublicId }),
+    },
+    { new: true }
+  );
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, updatedVideo, "video details updated successfully"));
+});
+
 
 const deleteVideo = asyncHandler(async(req,res)=>{
     //verify

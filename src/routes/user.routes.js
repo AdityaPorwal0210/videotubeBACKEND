@@ -21,6 +21,10 @@ router.route("/register").post(
     )
 
 router.route("/login").post(loginUser)
+//comment
+import { getVideoComments,addComment,updateComment,deleteComment } from "../controllers/comment.controller.js";
+
+
 
 //secured routes
 router.route("/logout").post(verifyJWT,  logoutUser)
@@ -34,4 +38,6 @@ router.route("/cover-image").patch(verifyJWT, upload.single("coverImage"), updat
 
 router.route("/c/:username").get(verifyJWT, getUserChannelProfile)
 router.route("/history").get(verifyJWT, getWatchHistory)
+
+
     export default router
