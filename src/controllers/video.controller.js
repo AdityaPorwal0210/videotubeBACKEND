@@ -130,8 +130,9 @@ const publishVideo = asyncHandler(async(req,res)=>{
     if(!title || !description){
         throw new ApiError(400,"video details not found")
     }
-    const videoLocalPath = req.files?.video[0].path
-    const thumbnailLocalPath=req.files?.thumbnail[0].path
+    const videoLocalPath = req.files?.videoFile?.[0]?.path;
+const thumbnailLocalPath = req.files?.thumbnail?.[0]?.path;
+
     if(!videoLocalPath){
         throw new ApiError(400,"videoLocalPath not found")
     }
