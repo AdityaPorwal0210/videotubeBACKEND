@@ -1,16 +1,15 @@
 import mongoose from "mongoose";
-import { asyncHandler } from "../utils/asyncHandler";
-import { ApiError } from "../utils/ApiError";
-import { ApiResponse } from "../utils/ApiResponse";
-import { Tweet } from "../models/tweet.model";
-import { User } from "../models/user.model";
-import {v2 as cloudinary} from "cloudinary"
-const createTweet = asyncHandler(async (req, res) => {
-  
-  const { content } = req.body;                     
+import { asyncHandler } from "../utils/asyncHandler.js";
+import { ApiError } from "../utils/ApiError.js";
+import { ApiResponse } from "../utils/ApiResponse.js";
+import { Tweet } from "../models/tweet.model.js";
+
+// POST /tweets
+export const createTweet = asyncHandler(async (req, res) => {
+  const { content } = req.body;
 
   if (!content || content.trim().length === 0) {
-    throw new ApiError(400, "no tweet content found"); 
+    throw new ApiError(400, "no tweet content found");
   }
 
   const userId = req.user?._id;
@@ -18,50 +17,51 @@ const createTweet = asyncHandler(async (req, res) => {
     throw new ApiError(401, "user not verified");
   }
 
-  try {
-    const newTweet = await Tweet.create({          
-      content,                                      
-      owner: userId,
-    });
+  const newTweet = await Tweet.create({
+    content,
+    owner: userId,
+  });
 
-    return res
-      .status(201)                                 
-      .json(new ApiResponse(201, newTweet, "new tweet created successfully"));
-  } catch (error) {
-    throw new ApiError(500, error.message || "error while creating new tweet");
-  }
+  return res
+    .status(201)
+    .json(new ApiResponse(201, newTweet, "new tweet created successfully"));
 });
 
-const getUserTweets = asyncHandler(async(req,res)=>{
-//verify with auth middleware
-const userId = req.user?._id
-if(!userId){
-    throw new ApiError(404,"invalid user")
-}
-const userTweets = await Tweet.aggregate(
-    [
-        {
-            $match:{
-                owner:userId
-            }
-        },
-        {
-            $project:{
-            content:1,
-            }
-        },
-    ]
-)
-return res.status(200)
-        .json(new ApiResponse(200,userTweets,"user tweets fetched successfully"))
-})
+// GET /tweets/user/:userId
+export const getUserTweets = asyncHandler(async (req, res) => {
+  const { userId } = req.params;
 
-const updateTweet = asyncHandler(async (req, res) => {
-  const { content, tweetId } = req.body;            
+  if (!mongoose.Types.ObjectId.isValid(userId)) {
+    throw new ApiError(400, "invalid user");
+  }
+
+  const userTweets = await Tweet.aggregate([
+    {
+      $match: {
+        owner: new mongoose.Types.ObjectId(userId),
+      },
+    },
+    {
+      $project: {
+        content: 1,
+        createdAt: 1,
+      },
+    },
+  ]);
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, userTweets, "user tweets fetched successfully"));
+});
+
+// PATCH /tweets/:tweetId
+export const updateTweet = asyncHandler(async (req, res) => {
+  const { tweetId } = req.params;
+  const { content } = req.body;
 
   const userId = req.user?._id;
   if (!userId) {
-    throw new ApiError(401, "user not found");  
+    throw new ApiError(401, "user not found");
   }
 
   if (!mongoose.Types.ObjectId.isValid(tweetId)) {
@@ -89,13 +89,13 @@ const updateTweet = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, tweet, "tweet updated successfully"));
 });
 
-
-const deleteTweet = asyncHandler(async (req, res) => {
-  const { tweetId } = req.body;                     
+// DELETE /tweets/:tweetId
+export const deleteTweet = asyncHandler(async (req, res) => {
+  const { tweetId } = req.params;
 
   const userId = req.user?._id;
   if (!userId) {
-    throw new ApiError(401, "user not found");  
+    throw new ApiError(401, "user not found");
   }
 
   if (!mongoose.Types.ObjectId.isValid(tweetId)) {
@@ -117,5 +117,3 @@ const deleteTweet = asyncHandler(async (req, res) => {
     .status(200)
     .json(new ApiResponse(200, null, "tweet deleted successfully"));
 });
-
-export {createTweet,getUserTweets,updateTweet,deleteTweet}

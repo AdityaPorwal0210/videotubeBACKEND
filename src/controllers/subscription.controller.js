@@ -9,8 +9,8 @@ const toggleSubscription = asyncHandler(async(req,res)=>{
     //first get the current status from subscription models where channel and subscriber are matched
     //if already subscribed then delete that subscription model
     // if not then create new subscription model
-    const {channel} = req.params
-    if(!channel){
+    const {channelId} = req.params
+    if(!channelId){
         throw new ApiError(400,"channel not found")
     }
     const userId = req.user?._id
@@ -19,7 +19,7 @@ const toggleSubscription = asyncHandler(async(req,res)=>{
     }
     const existingSubs = await Subscription.findOneAndDelete(
         {
-            channel: new mongoose.Types.ObjectId(channel),
+            channel: new mongoose.Types.ObjectId(channelId),
             subscriber:userId,
         }
     )
@@ -29,7 +29,7 @@ const toggleSubscription = asyncHandler(async(req,res)=>{
         }
 
     const newSubscribe = await Subscription.create({
-        channel: new mongoose.Types.ObjectId(channel),
+        channel: new mongoose.Types.ObjectId(channelId),
         subscriber:userId
     })
     return res.status(200)

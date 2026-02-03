@@ -1,8 +1,8 @@
 import mongoose from "mongoose";
-import { ApiError } from "../utils/ApiError";
-import { ApiResponse } from "../utils/ApiResponse";
-import { Playlist } from "../models/playlist.model";
-import { asyncHandler } from "../utils/asyncHandler";
+import { ApiError } from "../utils/ApiError.js";
+import { ApiResponse } from "../utils/ApiResponse.js";
+import { Playlist } from "../models/playlist.model.js";
+import { asyncHandler } from "../utils/asyncHandler.js";
 import {v2 as cloudinary} from "cloudinary"
 import { uploadOnCloudinary } from "../utils/cloudinary";
 
@@ -75,79 +75,79 @@ const getPlaylistById = asyncHandler(async(req,res)=>{
     return res.status(200).json(new ApiResponse(200,playlist,"playlist found"))
 })
 
-const addVideoToPlaylist = asyncHandler(async(req,res)=>{
-    // verify with auth
-    const userId = req.user?._id
-    if(!userId){
-        throw new ApiError(400,"userId not found")
-    }
-    const {playlistId}=req.params
-    if(!mongoose.Types.ObjectId.isValid(playlistId)){
-        throw new ApiError(400,"playlistId not found")
-    }
-    const videoLocalPath=req.files?.video[0]?.path
-    if(!videoLocalPath){
-        throw new ApiError(400,"videoLocalPath not found")
-    }
-    const video = await uploadOnCloudinary(videoLocalPath)
-    if(!video){
-        throw new ApiError(400,"video upload failed")
-    }
-    const playlist = await Playlist.findOneAndUpdate({
-        _id:playlistId,
-        owner:userId
-        },
-        {
-            $push:{
-                videos:{
-                    videoFile:video.url
-                }
-            }
-        },
-        { new: true }
-    )
-    if(!playlist){
-        throw new ApiError(400,"playlist update failed")
-    }
-    return res
-    .status(200)
-    .json(new ApiResponse(200,playlist,"playlist updated"))
-})
+export const addVideoToPlaylist = asyncHandler(async (req, res) => {
+  const userId = req.user?._id;
+  if (!userId) {
+    throw new ApiError(401, "user not found");
+  }
 
-const removeVideoFromPlaylist = asyncHandler(async(req,res)=>{
-    //veify auth
-    const {videoId,playlistId}=req.params
-    if(!videoId||!playlistId){
-        throw new ApiError(400,"please give proper input")
-    }
-    const userId = req.user?._id
-    if(!userId){
-        throw new ApiError(401,"user not found")
-    }
-    const playlist = await Playlist.findOneAndUpdate(
+  const { videoId, playlistId } = req.params;
+
+  if (
+    !mongoose.Types.ObjectId.isValid(videoId) ||
+    !mongoose.Types.ObjectId.isValid(playlistId)
+  ) {
+    throw new ApiError(400, "invalid videoId or playlistId");
+  }
+
+  const playlist = await Playlist.findOneAndUpdate(
+    { _id: playlistId, owner: userId },
     {
-      _id: playlistId,
-      owner: userId
-    },
-    {
-      $pull: {
-        videos: { _id: videoId }
-      }
+      $addToSet: {                                      
+        videos: new mongoose.Types.ObjectId(videoId), 
+      },
     },
     { new: true }
-    );
-//     const playlist = await Playlist.findOne({
-//     _id: playlistId,
-//     owner: userId
-//   });
-    if(!playlist){
-        throw new ApiError(402,"playlist not found")
-    }
-    // playlist.videos = playlist.videos.filter((video)=>video._id.toString()!==videoId.toString())
-    // await playlist.save()
-    return res.status(200)
-    .json(new ApiResponse(200,playlist,"video delelted successfully"))
-})
+  ).populate({
+    path: "videos",
+    select: "title thumbnail videoFile views createdAt",
+  });
+
+  if (!playlist) {
+    throw new ApiError(404, "playlist not found or access denied");
+  }
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, playlist, "playlist updated"));
+});
+
+
+export const removeVideoFromPlaylist = asyncHandler(async (req, res) => {
+  const { videoId, playlistId } = req.params;
+
+  if (
+    !mongoose.Types.ObjectId.isValid(videoId) ||
+    !mongoose.Types.ObjectId.isValid(playlistId)
+  ) {
+    throw new ApiError(400, "invalid videoId or playlistId"); 
+  }
+
+  const userId = req.user?._id;
+  if (!userId) {
+    throw new ApiError(401, "user not found");
+  }
+
+  const playlist = await Playlist.findOneAndUpdate(
+    { _id: playlistId, owner: userId },                
+    {
+      $pull: { videos: new mongoose.Types.ObjectId(videoId) }, 
+    },
+    { new: true }
+  ).populate({
+    path: "videos",
+    select: "title thumbnail videoFile views createdAt",
+  });
+
+  if (!playlist) {
+    throw new ApiError(404, "playlist not found or access denied"); 
+  }
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, playlist, "video deleted successfully"));
+});
+
 
 const deletePlaylist = asyncHandler(async(req,res)=>{
     // verify user with auth
@@ -174,22 +174,40 @@ const deletePlaylist = asyncHandler(async(req,res)=>{
 
 })
 
-const updatePlaylist = asyncHandler(async(req,res)=>{
-    //verify auth
-    const userId = req.user?._id
-    if(!userId){
-        throw new ApiError(401,"user not found")
-    }
-    const {playlistId}= req.params
-    if(!playlistId){
-        throw new ApiError(401,"playlistId not found")
-    }
-    const {name,description}=req.body
-    const updatedPlaylist = await Playlist.findOneAndUpdate({_id:playlistId,owner:userId},{name:name,description:description},{new:true})
-    if(!updatedPlaylist){
-        throw new ApiError(401,"error while updating playlist")
-    }
-    return res.status(200).json(new ApiResponse(200,updatedPlaylist,"playlist updated successfully"))
-})
+ const updatePlaylist = asyncHandler(async (req, res) => {
+  const userId = req.user?._id;
+  if (!userId) {
+    throw new ApiError(401, "user not found");
+  }
+
+  const { playlistId } = req.params;
+  if (!mongoose.Types.ObjectId.isValid(playlistId)) {   // ❌ before: only !playlistId
+    throw new ApiError(400, "invalid playlistId");
+  }
+
+  const { name, description } = req.body;
+
+  // ❌ before: always set name & description, even if undefined
+  const updateData = {};                                // ✅ update only provided fields
+  if (name) updateData.name = name;
+  if (description) updateData.description = description;
+
+  const updatedPlaylist = await Playlist.findOneAndUpdate(
+    { _id: playlistId, owner: userId },                 // ✅ ownership check
+    updateData,
+    { new: true }
+  );
+
+  if (!updatedPlaylist) {
+    throw new ApiError(404, "error while updating playlist"); // ❌ before: 401
+  }
+
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(200, updatedPlaylist, "playlist updated successfully")
+    );
+});
+
 
 export {updatePlaylist,deletePlaylist,removeVideoFromPlaylist,addVideoToPlaylist,getPlaylistById,getUserPlaylists,createPlaylist}
