@@ -249,23 +249,34 @@ const deleteVideo = asyncHandler(async(req,res)=>{
 })
 
 const togglePublishStatus = asyncHandler(async (req, res) => {
-    const { videoId } = req.params
-     const userId = req.user?._id
-        if(!videoId){
-            throw new ApiError(401,"videoId is invalid")
-        }
-        if(!userId){
-            throw new ApiError(401,"userId is invalid")
-        }
-    
-        const video = await Video.findOneAndUpdate(
-            {_id:videoId,owner:userId},
-            [
-             { $set: { isPublished: { $not: "$isPublished" } } }
-            ],{new:true}
-        )
-        if (!video) throw new ApiError(404, "Video not found");
-        return res.status(200).json(new ApiResponse(200,video,"liked this video successfully"))
-})
+  const { videoId } = req.params;
+  const userId = req.user?._id;
+
+  if (!videoId) {
+    throw new ApiError(401, "videoId is invalid");
+  }
+  if (!userId) {
+    throw new ApiError(401, "userId is invalid");
+  }
+
+  console.log("before video");
+
+  // First find the video
+  const existingVideo = await Video.findOne({ _id: videoId, owner: userId });
+  if (!existingVideo) {
+    throw new ApiError(404, "Video not found");
+  }
+
+  // Toggle the boolean and save
+  existingVideo.isPublished = !existingVideo.isPublished;
+  const video = await existingVideo.save();
+
+  console.log("after video");
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, video, "publish status toggled successfully"));
+});
+
 
 export{getAllVideos,togglePublishStatus,deleteVideo,publishVideo,updateVideo,getVideoById}
