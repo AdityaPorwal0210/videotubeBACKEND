@@ -11,7 +11,7 @@ const getVideoComments = asyncHandler(async(req,res)=>{
     page = parseInt(page);
     limit = parseInt(limit);
     const skip = (page - 1) * limit;
-    if(!mongoose.Types.ObjectId(videoId)){
+    if(!mongoose.Types.ObjectId.isValid(videoId)){
         throw new ApiError(404,"videoId not valid")
     }
 
@@ -60,10 +60,9 @@ const addComment = asyncHandler(async(req,res)=>{
     const userId = req.user?._id
     const {videoId} = req.params
     const {content} = req.body
-    if(!mongoose.Types.ObjectId(videoId)){
+    if(!mongoose.Types.ObjectId.isValid(videoId)){
         throw new ApiError(404,"videoId not valid")
     }
-
     const newComment = await Comment.create(
         {
           content:content,
@@ -71,6 +70,7 @@ const addComment = asyncHandler(async(req,res)=>{
           owner:userId
         }
     )
+
     if(!newComment){
         throw new ApiError(406,"error while creating  a comment")
     }
