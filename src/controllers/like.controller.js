@@ -1,10 +1,10 @@
 import mongoose from "mongoose";
-import { asyncHandler } from "../utils/asyncHandler";
-import { ApiError } from "../utils/ApiError";
-import { ApiResponse } from "../utils/ApiResponse";
-import { Like } from "../models/like.model";
+import { asyncHandler } from "../utils/asyncHandler.js";
+import { ApiError } from "../utils/ApiError.js";
+import { ApiResponse } from "../utils/ApiResponse.js";
+import { Like } from "../models/like.model.js";
 
-const toogleVideoLike = asyncHandler(async(req,res)=>{
+const toggleVideoLike  = asyncHandler(async(req,res)=>{
     //verify user
     // if found one then delete 
     // create like
@@ -30,7 +30,7 @@ const toogleVideoLike = asyncHandler(async(req,res)=>{
     }
     return res.status(200).json(new ApiResponse(200,newLike,"liked this video successfully"))
 })
-const toogleCommentLike = asyncHandler(async(req,res)=>{
+const toggleCommentLike  = asyncHandler(async(req,res)=>{
     //verify user
     // if found one then delete 
     // create like
@@ -57,7 +57,7 @@ const toogleCommentLike = asyncHandler(async(req,res)=>{
     return res.status(200).json(new ApiResponse(200,newLike,"liked this video successfully"))
 })
 
-const toogleTweetLike = asyncHandler(async(req,res)=>{
+const toggleTweetLike  = asyncHandler(async(req,res)=>{
     //verify user
     // if found one then delete 
     // create like
@@ -129,4 +129,4 @@ const getLikedVideos = asyncHandler(async(req,res)=>{
     
 })
 
-export {getLikedVideos,toogleCommentLike,toogleTweetLike,toogleVideoLike}
+export {getLikedVideos,toggleCommentLike,toggleTweetLike,toggleVideoLike}
