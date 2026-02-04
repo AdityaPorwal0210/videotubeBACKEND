@@ -16,11 +16,12 @@ export const createTweet = asyncHandler(async (req, res) => {
   if (!userId) {
     throw new ApiError(401, "user not verified");
   }
-
+  console.log("before creating tweet")
   const newTweet = await Tweet.create({
     content,
     owner: userId,
   });
+  console.log("after creating tweet")
 
   return res
     .status(201)
