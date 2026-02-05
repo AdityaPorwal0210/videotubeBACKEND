@@ -5,6 +5,8 @@ import {v2 as cloudinary} from "cloudinary"
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import { Video } from "../models/video.model.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
+import { Like } from "../models/like.model.js";
+
 const getAllVideos = asyncHandler(async (req, res) => {
     let { page = 1, limit = 10, query, sortBy, sortType, userId } = req.query;
 
@@ -163,17 +165,42 @@ const thumbnailLocalPath = req.files?.thumbnail?.[0]?.path;
     return res.status(200).json(new ApiResponse(200,newVideo,"new video created successfully"))
 })
 
-const getVideoById = asyncHandler(async(req,res)=>{
-    const {videoId} = req.params
-    if(!videoId){
-        throw new ApiError(404,"videoId not found")
-    }
-    const video = await Video.findById(videoId).select("-isPublished")
-    if(!video){
-        throw new ApiError(407,"video not found")
-    }
-    return res.status(200).json(new ApiResponse(200,video,"video fetched successfully"))
-})
+const getVideoById = asyncHandler(async (req, res) => {
+  const { videoId } = req.params;
+  const userId = req.user?._id;
+
+  if (!mongoose.Types.ObjectId.isValid(videoId)) {
+    throw new ApiError(400, "Invalid video id");
+  }
+
+  const video = await Video.findById(videoId)
+    .populate("owner", "fullName username avatar"); // whatever you need
+
+  if (!video) {
+    throw new ApiError(404, "Video not found");
+  }
+
+  let isLikedByCurrentUser = false;
+
+  if (userId) {
+    const existingLike = await Like.findOne({
+      video: videoId,
+      likedBy: userId,
+    }).select("_id");
+
+    isLikedByCurrentUser = !!existingLike;
+  }
+
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(200, {
+        ...video.toObject(),
+        isLikedByCurrentUser,
+      })
+    );
+});
+
 
 const updateVideo = asyncHandler(async (req, res) => {
   const userId = req.user?._id;

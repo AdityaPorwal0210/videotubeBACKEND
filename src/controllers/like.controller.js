@@ -3,33 +3,67 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { Like } from "../models/like.model.js";
+import { Video } from "../models/video.model.js";
 
-const toggleVideoLike  = asyncHandler(async(req,res)=>{
-    //verify user
-    // if found one then delete 
-    // create like
-    const{videoId} = req.params
-    const userId = req.user?._id
-    if(!mongoose.Types.ObjectId.isValid(videoId)){
-        throw new ApiError(401,"videoId is invalid")
-    }
-    if(!userId){
-        throw new ApiError(401,"userId is invalid")
-    }
+const toggleVideoLike = asyncHandler(async (req, res) => {
+  const { videoId } = req.params;
+  const userId = req.user?._id;
 
-    const deletedLike = await Like.findOneAndDelete(
-        {video:videoId,likedBy:userId}
-    )
-    if(deletedLike){
-        return res.status(200).json(new ApiResponse(200,null,"unliked successfully"))
-    }
+  if (!mongoose.Types.ObjectId.isValid(videoId)) {
+    throw new ApiError(401, "videoId is invalid");
+  }
+  if (!userId) {
+    throw new ApiError(401, "userId is invalid");
+  }
 
-    const newLike = await Like.create({video:videoId,likedBy:userId})
-    if(!newLike){
-        throw new ApiError(405,"error while liking this video")
-    }
-    return res.status(200).json(new ApiResponse(200,newLike,"liked this video successfully"))
-})
+  // check if like exists and delete
+  const existingLike = await Like.findOne({ video: videoId, likedBy: userId });
+
+  if (existingLike) {
+    await existingLike.deleteOne();
+
+    // decrement likes count on video
+    const updatedVideo = await Video.findByIdAndUpdate(
+      videoId,
+      { $inc: { likes: -1 } },
+      { new: true }
+    );
+
+    return res
+      .status(200)
+      .json(
+        new ApiResponse(
+          200,
+          { likes: updatedVideo?.likes ?? 0, liked: false },
+          "unliked successfully"
+        )
+      );
+  }
+
+  // create like
+  const newLike = await Like.create({ video: videoId, likedBy: userId });
+  if (!newLike) {
+    throw new ApiError(405, "error while liking this video");
+  }
+
+  // increment likes count on video
+  const updatedVideo = await Video.findByIdAndUpdate(
+    videoId,
+    { $inc: { likes: 1 } },
+    { new: true }
+  );
+
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(
+        200,
+        { likes: updatedVideo?.likes ?? 0, liked: true },
+        "liked this video successfully"
+      )
+    );
+});
+
 const toggleCommentLike  = asyncHandler(async(req,res)=>{
     //verify user
     // if found one then delete 
