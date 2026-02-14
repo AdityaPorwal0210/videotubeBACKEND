@@ -15,7 +15,7 @@ const app = express();
 
 app.use(
   cors({
-    origin: process.env.CORS_ORIGIN || "https://videotube-frontend-six.vercel.app/",
+    origin: process.env.CORS_ORIGIN || "https://videotube-frontend-six.vercel.app",
     credentials: true,
   })
 );
